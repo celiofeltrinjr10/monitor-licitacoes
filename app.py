@@ -13,8 +13,6 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 
-from analisar_edital import extrair_texto_pdf, extrair_campos, gerar_relatorio_docx
-
 from pncp_scraper import (
     consultar_pncp,
     contem_palavra_chave,
@@ -45,8 +43,6 @@ st.markdown("""
 st.title("🏗️ Monitor de Licitações de Obras — PNCP")
 st.caption("Infraestrutura · Mobilidade Urbana · Rodovias · Construção Pesada")
 st.divider()
-
-tab_monitor, tab_analise = st.tabs(["🔍 Monitor de Licitações", "📄 Análise de Edital"])
 
 # ── Barra lateral — filtros ───────────────────────────────────────────────────
 with st.sidebar:
@@ -199,204 +195,141 @@ if buscar_btn:
     st.session_state.log_busca = log
 
 
-# ── Tab 1: Resultados do Monitor ──────────────────────────────────────────────
-with tab_monitor:
-    if st.session_state.resultados:
-        resultados = st.session_state.resultados
-        df = pd.DataFrame(resultados)
+# ── Resultados ────────────────────────────────────────────────────────────────
+if st.session_state.resultados:
+    resultados = st.session_state.resultados
+    df = pd.DataFrame(resultados)
 
-        col1, col2, col3, col4 = st.columns(4)
-        com_valor = df[df["valorEstimado"].apply(
-            lambda x: isinstance(x, (int, float)) and x > 0
-        )]
-        with col1:
-            st.metric("Total encontrado", len(df))
-        with col2:
-            st.metric("Com valor informado", len(com_valor))
-        with col3:
-            if len(com_valor) > 0:
-                media = com_valor["valorEstimado"].mean()
-                st.metric("Valor médio", f"R$ {media / 1e6:.1f} M")
-            else:
-                st.metric("Valor médio", "—")
-        with col4:
-            st.metric("Atualizado em", st.session_state.ultima_busca or "—")
+    col1, col2, col3, col4 = st.columns(4)
+    com_valor = df[df["valorEstimado"].apply(
+        lambda x: isinstance(x, (int, float)) and x > 0
+    )]
+    with col1:
+        st.metric("Total encontrado", len(df))
+    with col2:
+        st.metric("Com valor informado", len(com_valor))
+    with col3:
+        if len(com_valor) > 0:
+            media = com_valor["valorEstimado"].mean()
+            st.metric("Valor médio", f"R$ {media / 1e6:.1f} M")
+        else:
+            st.metric("Valor médio", "—")
+    with col4:
+        st.metric("Atualizado em", st.session_state.ultima_busca or "—")
 
-        st.divider()
+    st.divider()
 
-        df_vis = df.copy()
-        if uf_filtro_sidebar:
-            df_vis = df_vis[df_vis["uf"].isin(uf_filtro_sidebar)]
+    df_vis = df.copy()
+    if uf_filtro_sidebar:
+        df_vis = df_vis[df_vis["uf"].isin(uf_filtro_sidebar)]
 
-        def fmt_valor(v):
-            if isinstance(v, (int, float)) and v > 0:
-                return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-            return "—"
+    def fmt_valor(v):
+        if isinstance(v, (int, float)) and v > 0:
+            return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        return "—"
 
-        df_vis = df_vis.copy()
-        df_vis["valorEstimado"] = df_vis["valorEstimado"].apply(fmt_valor)
+    df_vis = df_vis.copy()
+    df_vis["valorEstimado"] = df_vis["valorEstimado"].apply(fmt_valor)
 
-        colunas_exibir = [
-            "numeroControlePNCP", "uf", "municipio", "orgao", "modalidade",
-            "objetoCompra", "valorEstimado", "dataEncerramentoProposta",
-            "situacao", "palavraChaveEncontrada", "linkPNCP",
-        ]
+    colunas_exibir = [
+        "numeroControlePNCP", "uf", "municipio", "orgao", "modalidade",
+        "objetoCompra", "valorEstimado", "dataEncerramentoProposta",
+        "situacao", "palavraChaveEncontrada", "linkPNCP",
+    ]
 
-        st.dataframe(
-            df_vis[colunas_exibir],
+    st.dataframe(
+        df_vis[colunas_exibir],
+        use_container_width=True,
+        hide_index=True,
+        height=520,
+        column_config={
+            "numeroControlePNCP":        st.column_config.TextColumn("Nº PNCP", width="medium"),
+            "uf":                        st.column_config.TextColumn("UF", width="small"),
+            "municipio":                 st.column_config.TextColumn("Município", width="medium"),
+            "orgao":                     st.column_config.TextColumn("Órgão", width="large"),
+            "modalidade":                st.column_config.TextColumn("Modalidade", width="medium"),
+            "objetoCompra":              st.column_config.TextColumn("Objeto", width="large"),
+            "valorEstimado":             st.column_config.TextColumn("Valor Estimado", width="medium"),
+            "dataEncerramentoProposta":  st.column_config.TextColumn("Encerramento Proposta", width="medium"),
+            "situacao":                  st.column_config.TextColumn("Situação", width="medium"),
+            "palavraChaveEncontrada":    st.column_config.TextColumn("Palavra-chave", width="medium"),
+            "linkPNCP":                  st.column_config.LinkColumn("Link PNCP", width="medium"),
+        },
+    )
+
+    def gerar_excel(dados: list) -> BytesIO:
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Licitacoes"
+        ws.append(CABECALHO)
+        fonte_cab = Font(bold=True, color="FFFFFF", name="Arial")
+        fill_cab = PatternFill("solid", start_color="1F4E78")
+        for col_idx in range(1, len(CABECALHO) + 1):
+            c = ws.cell(row=1, column=col_idx)
+            c.font = fonte_cab
+            c.fill = fill_cab
+            c.alignment = Alignment(horizontal="center", vertical="center")
+        for linha in dados:
+            ws.append([sanitizar(linha.get(col, "")) for col in CABECALHO])
+        larguras = [34, 16, 18, 32, 16, 6, 20, 22, 50, 16, 18, 18, 18, 16, 20, 40, 20]
+        for col_idx, larg in enumerate(larguras, start=1):
+            ws.column_dimensions[get_column_letter(col_idx)].width = larg
+        ws.freeze_panes = "A2"
+        buf = BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        return buf
+
+    col_dl, col_info = st.columns([1, 4])
+    with col_dl:
+        excel_buf = gerar_excel(resultados)
+        st.download_button(
+            label="⬇️  Baixar Excel",
+            data=excel_buf,
+            file_name=f"licitacoes_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            type="primary",
             use_container_width=True,
-            hide_index=True,
-            height=520,
-            column_config={
-                "numeroControlePNCP":        st.column_config.TextColumn("Nº PNCP", width="medium"),
-                "uf":                        st.column_config.TextColumn("UF", width="small"),
-                "municipio":                 st.column_config.TextColumn("Município", width="medium"),
-                "orgao":                     st.column_config.TextColumn("Órgão", width="large"),
-                "modalidade":                st.column_config.TextColumn("Modalidade", width="medium"),
-                "objetoCompra":              st.column_config.TextColumn("Objeto", width="large"),
-                "valorEstimado":             st.column_config.TextColumn("Valor Estimado", width="medium"),
-                "dataEncerramentoProposta":  st.column_config.TextColumn("Encerramento Proposta", width="medium"),
-                "situacao":                  st.column_config.TextColumn("Situação", width="medium"),
-                "palavraChaveEncontrada":    st.column_config.TextColumn("Palavra-chave", width="medium"),
-                "linkPNCP":                  st.column_config.LinkColumn("Link PNCP", width="medium"),
-            },
         )
+    with col_info:
+        st.caption(f"Exporta todas as {len(resultados)} licitações (independente do filtro de UF).")
 
-        def gerar_excel(dados: list) -> BytesIO:
-            wb = Workbook()
-            ws = wb.active
-            ws.title = "Licitacoes"
-            ws.append(CABECALHO)
-            fonte_cab = Font(bold=True, color="FFFFFF", name="Arial")
-            fill_cab = PatternFill("solid", start_color="1F4E78")
-            for col_idx in range(1, len(CABECALHO) + 1):
-                c = ws.cell(row=1, column=col_idx)
-                c.font = fonte_cab
-                c.fill = fill_cab
-                c.alignment = Alignment(horizontal="center", vertical="center")
-            for linha in dados:
-                ws.append([sanitizar(linha.get(col, "")) for col in CABECALHO])
-            larguras = [34, 16, 18, 32, 16, 6, 20, 22, 50, 16, 18, 18, 18, 16, 20, 40, 20]
-            for col_idx, larg in enumerate(larguras, start=1):
-                ws.column_dimensions[get_column_letter(col_idx)].width = larg
-            ws.freeze_panes = "A2"
-            buf = BytesIO()
-            wb.save(buf)
-            buf.seek(0)
-            return buf
+    st.subheader("📍 Distribuição por Estado")
+    uf_counts = df["uf"].value_counts().reset_index()
+    uf_counts.columns = ["UF", "Quantidade"]
+    BRAZIL_GEOJSON = "https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/brazil-states.geojson"
+    fig = px.choropleth(
+        uf_counts,
+        geojson=BRAZIL_GEOJSON,
+        locations="UF",
+        featureidkey="properties.sigla",
+        color="Quantidade",
+        color_continuous_scale="Blues",
+        hover_name="UF",
+        hover_data={"Quantidade": True, "UF": False},
+    )
+    fig.update_geos(fitbounds="locations", visible=False)
+    fig.update_layout(
+        margin={"r": 0, "t": 0, "l": 0, "b": 0},
+        height=450,
+        coloraxis_colorbar=dict(title="Licitações"),
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
-        col_dl, col_info = st.columns([1, 4])
-        with col_dl:
-            excel_buf = gerar_excel(resultados)
-            st.download_button(
-                label="⬇️  Baixar Excel",
-                data=excel_buf,
-                file_name=f"licitacoes_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                type="primary",
-                use_container_width=True,
-            )
-        with col_info:
-            st.caption(f"Exporta todas as {len(resultados)} licitações (independente do filtro de UF).")
+    with st.expander("📋 Log da última busca"):
+        for entry in st.session_state.log_busca:
+            st.caption(f"• {entry}")
 
-        st.subheader("📍 Distribuição por Estado")
-        uf_counts = df["uf"].value_counts().reset_index()
-        uf_counts.columns = ["UF", "Quantidade"]
-        BRAZIL_GEOJSON = "https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/brazil-states.geojson"
-        fig = px.choropleth(
-            uf_counts,
-            geojson=BRAZIL_GEOJSON,
-            locations="UF",
-            featureidkey="properties.sigla",
-            color="Quantidade",
-            color_continuous_scale="Blues",
-            hover_name="UF",
-            hover_data={"Quantidade": True, "UF": False},
-        )
-        fig.update_geos(fitbounds="locations", visible=False)
-        fig.update_layout(
-            margin={"r": 0, "t": 0, "l": 0, "b": 0},
-            height=450,
-            coloraxis_colorbar=dict(title="Licitações"),
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-        with st.expander("📋 Log da última busca"):
-            for entry in st.session_state.log_busca:
-                st.caption(f"• {entry}")
-
-    else:
-        st.info(
-            "👈 Configure os parâmetros na barra lateral e clique em **Buscar Licitações** para começar.",
-            icon="ℹ️",
-        )
-        with st.expander("Como usar"):
-            st.markdown("""
+else:
+    st.info(
+        "👈 Configure os parâmetros na barra lateral e clique em **Buscar Licitações** para começar.",
+        icon="ℹ️",
+    )
+    with st.expander("Como usar"):
+        st.markdown("""
 1. **Período**: quantos dias retroativos consultar no PNCP (padrão: 9 dias)
 2. **Valor mínimo**: obras abaixo desse valor são descartadas (padrão: R$ 100 M)
 3. **Modalidades**: marque os tipos de licitação desejados
 4. Clique em **Buscar** — a busca pode levar alguns minutos dependendo do volume
 5. Filtre por estado na tabela e use **Baixar Excel** para exportar
-            """)
-
-
-# ── Tab 2: Análise de Edital ───────────────────────────────────────────────────
-with tab_analise:
-    st.subheader("📄 Análise Automática de Edital")
-    st.caption("Faça upload do PDF do edital para extrair os campos principais e gerar um relatório Word.")
-
-    arquivo = st.file_uploader(
-        "Selecione o PDF do edital",
-        type=["pdf"],
-        help="Arraste ou clique para selecionar o arquivo PDF",
-    )
-
-    if arquivo is not None:
-        with st.spinner("Extraindo texto do PDF..."):
-            texto = extrair_texto_pdf(arquivo)
-
-        if not texto.strip():
-            st.error("Não foi possível extrair texto deste PDF. Verifique se o arquivo não é uma imagem escaneada.")
-        else:
-            st.success(f"PDF lido com sucesso — {len(texto):,} caracteres extraídos.")
-
-            with st.spinner("Identificando campos..."):
-                campos = extrair_campos(texto)
-
-            st.divider()
-            st.subheader("Campos Identificados")
-
-            col_a, col_b = st.columns(2)
-            with col_a:
-                st.markdown("**Identificação**")
-                st.write(f"📋 **Edital:** {campos.get('numero_edital', '—') or '—'}")
-                st.write(f"🏛️ **Órgão:** {campos.get('orgao', '—') or '—'}")
-                st.write(f"🔢 **CNPJ:** {campos.get('cnpj', '—') or '—'}")
-                st.write(f"📍 **UF:** {campos.get('uf', '—') or '—'}")
-                st.write(f"📝 **Modalidade:** {campos.get('modalidade', '—') or '—'}")
-                st.write(f"⚖️ **Critério:** {campos.get('criterio_julgamento', '—') or '—'}")
-            with col_b:
-                st.markdown("**Financeiro e Prazos**")
-                st.write(f"💰 **Valor Estimado:** {campos.get('valor_estimado', '—') or '—'}")
-                st.write(f"⏱️ **Prazo de Execução:** {campos.get('prazo_execucao', '—') or '—'}")
-                st.write(f"🔒 **Garantia:** {campos.get('garantia', '—') or '—'}")
-                st.write(f"📅 **Abertura:** {campos.get('data_abertura', '—') or '—'}")
-                st.write(f"📅 **Encerramento:** {campos.get('data_encerramento', '—') or '—'}")
-                st.write(f"📈 **Reajuste:** {campos.get('reajuste', '—') or '—'}")
-
-            if campos.get("objeto"):
-                st.divider()
-                st.markdown("**Objeto**")
-                st.info(campos["objeto"])
-
-            st.divider()
-            docx_buf = gerar_relatorio_docx(campos, nome_arquivo=arquivo.name)
-            st.download_button(
-                label="📥  Baixar Relatório Word (.docx)",
-                data=docx_buf,
-                file_name=f"analise_{arquivo.name.replace('.pdf', '')}.docx",
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                type="primary",
-                use_container_width=False,
-            )
-            st.caption("O relatório inclui todos os campos acima formatados para apresentação.")
+        """)
