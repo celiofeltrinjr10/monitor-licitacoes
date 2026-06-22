@@ -140,12 +140,13 @@ def contem_palavra_chave(objeto: str, lista: list | None = None) -> str | None:
     return None
 
 
-def consultar_pncp(data_inicial: str, data_final: str, modalidade_id: int) -> list[dict]:
+def consultar_pncp(data_inicial: str, data_final: str, modalidade_id: int,
+                   max_paginas: int = MAX_PAGINAS_SEGURANCA) -> list[dict]:
     """Pagina sobre a API de consulta do PNCP para uma modalidade e devolve todos os registros."""
     resultados = []
     pagina = 1
     pausa_atual = PAUSA_ENTRE_REQUISICOES  # aumenta dinamicamente após 429, recupera gradualmente
-    while pagina <= MAX_PAGINAS_SEGURANCA:
+    while pagina <= min(max_paginas, MAX_PAGINAS_SEGURANCA):
         params = {
             "dataInicial": data_inicial,
             "dataFinal": data_final,

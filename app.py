@@ -159,10 +159,12 @@ if buscar_btn:
     ) as status_box:
         prog = st.progress(0)
 
+        MAX_PAG_CLOUD = 25  # ~1250 registros por modalidade — evita timeout na nuvem
         for i, (cod, nome) in enumerate(modalidades_ativas.items()):
             st.write(f"Consultando **{nome}**...")
-            registros = consultar_pncp(data_ini, data_fim, cod)
-            msg = f"{nome}: {len(registros)} registros"
+            registros = consultar_pncp(data_ini, data_fim, cod, max_paginas=MAX_PAG_CLOUD)
+            atingiu_limite = len(registros) >= MAX_PAG_CLOUD * 50
+            msg = f"{nome}: {len(registros)} registros" + (" ⚠️ limite atingido" if atingiu_limite else "")
             log.append(msg)
             st.write(f"✅ {msg}")
 
