@@ -1,0 +1,2 @@
+2026-06-21 21:04:12 - dias=2 candidatas=573 novas=573 total_planilha=573
+2026-06-21 21:36:40 - dias=3 candidatas=112 novas=51 total_planilha=624
