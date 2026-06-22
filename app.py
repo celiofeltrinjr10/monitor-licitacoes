@@ -49,9 +49,11 @@ with st.sidebar:
 
     dias = st.slider(
         "Período de busca (dias atrás)",
-        min_value=1, max_value=30, value=9,
+        min_value=1, max_value=30, value=3,
         help="Quantos dias retroativos consultar no PNCP"
     )
+    if dias > 7:
+        st.warning("⚠️ Períodos acima de 7 dias podem causar timeout na nuvem. Prefira até 5 dias.")
 
     valor_min = st.number_input(
         "Valor mínimo estimado (R$)",
@@ -158,12 +160,12 @@ if buscar_btn:
     ) as status_box:
         prog = st.progress(0)
 
-        MAX_PAG_CLOUD = 25  # ~1250 registros por modalidade — evita timeout na nuvem
+        MAX_PAG_CLOUD = 10  # ~500 registros por modalidade — evita timeout na nuvem
         for i, (cod, nome) in enumerate(modalidades_ativas.items()):
             st.write(f"Consultando **{nome}**...")
             registros = consultar_pncp(data_ini, data_fim, cod, max_paginas=MAX_PAG_CLOUD)
             atingiu_limite = len(registros) >= MAX_PAG_CLOUD * 50
-            msg = f"{nome}: {len(registros)} registros" + (" ⚠️ limite atingido" if atingiu_limite else "")
+            msg = f"{nome}: {len(registros)} registros" + (" ⚠️ limite atingido — reduza o período" if atingiu_limite else "")
             log.append(msg)
             st.write(f"✅ {msg}")
 

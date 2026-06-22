@@ -94,7 +94,7 @@ echo.
 set /p MSG=   Descricao da mudanca (ex: atualiza palavras-chave):
 %GIT_EXE% commit -m "%MSG%"
 echo.
-%GIT_EXE% push
+%GIT_EXE% push --force origin main
 echo.
 echo Pronto! O app online sera atualizado em ~1 minuto.
 echo Pressione qualquer tecla para voltar ao menu.
