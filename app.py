@@ -5,6 +5,7 @@ Interface web Streamlit para o pncp_scraper.py
 
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 from datetime import datetime, timedelta
 from io import BytesIO
 
@@ -68,6 +69,20 @@ with st.sidebar:
     mods_sel = {}
     for cod, nome in MODALIDADES.items():
         mods_sel[cod] = st.checkbox(nome, value=True, key=f"mod_{cod}")
+
+    st.divider()
+    st.subheader("Estados (UF)")
+    TODAS_UFS = [
+        "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS",
+        "MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"
+    ]
+    uf_filtro_sidebar = st.multiselect(
+        "Filtrar por estado",
+        options=TODAS_UFS,
+        placeholder="Todos os estados",
+        label_visibility="collapsed",
+        help="Filtra os resultados após a busca",
+    )
 
     st.divider()
     buscar_btn = st.button(
@@ -206,17 +221,9 @@ if st.session_state.resultados:
 
     st.divider()
 
-    # Filtro por UF
-    ufs_disponiveis = sorted(df["uf"].dropna().unique().tolist())
-    uf_filtro = st.multiselect(
-        "Filtrar por Estado (UF)",
-        options=ufs_disponiveis,
-        placeholder="Todos os estados",
-    )
-
     df_vis = df.copy()
-    if uf_filtro:
-        df_vis = df_vis[df_vis["uf"].isin(uf_filtro)]
+    if uf_filtro_sidebar:
+        df_vis = df_vis[df_vis["uf"].isin(uf_filtro_sidebar)]
 
     # Formata valor para exibição
     def fmt_valor(v):
@@ -295,11 +302,28 @@ if st.session_state.resultados:
     with col_info:
         st.caption(f"Exporta todas as {len(resultados)} licitações encontradas (independente do filtro de UF).")
 
-    # Gráfico por UF
-    with st.expander("📊 Distribuição por Estado (UF)"):
-        uf_counts = df["uf"].value_counts().reset_index()
-        uf_counts.columns = ["UF", "Quantidade"]
-        st.bar_chart(uf_counts.set_index("UF"), height=300)
+    # Mapa do Brasil
+    st.subheader("📍 Distribuição por Estado")
+    uf_counts = df["uf"].value_counts().reset_index()
+    uf_counts.columns = ["UF", "Quantidade"]
+    BRAZIL_GEOJSON = "https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/brazil-states.geojson"
+    fig = px.choropleth(
+        uf_counts,
+        geojson=BRAZIL_GEOJSON,
+        locations="UF",
+        featureidkey="properties.sigla",
+        color="Quantidade",
+        color_continuous_scale="Blues",
+        hover_name="UF",
+        hover_data={"Quantidade": True, "UF": False},
+    )
+    fig.update_geos(fitbounds="locations", visible=False)
+    fig.update_layout(
+        margin={"r": 0, "t": 0, "l": 0, "b": 0},
+        height=450,
+        coloraxis_colorbar=dict(title="Licitações"),
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
     # Log
     with st.expander("📋 Log da última busca"):
