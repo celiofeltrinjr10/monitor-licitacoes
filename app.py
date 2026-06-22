@@ -5,7 +5,6 @@ Interface web Streamlit para o pncp_scraper.py
 
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 from datetime import datetime, timedelta
 from io import BytesIO
 
@@ -296,27 +295,6 @@ if st.session_state.resultados:
     with col_info:
         st.caption(f"Exporta todas as {len(resultados)} licitações (independente do filtro de UF).")
 
-    st.subheader("📍 Distribuição por Estado")
-    uf_counts = df["uf"].value_counts().reset_index()
-    uf_counts.columns = ["UF", "Quantidade"]
-    BRAZIL_GEOJSON = "https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/brazil-states.geojson"
-    fig = px.choropleth(
-        uf_counts,
-        geojson=BRAZIL_GEOJSON,
-        locations="UF",
-        featureidkey="properties.sigla",
-        color="Quantidade",
-        color_continuous_scale="Blues",
-        hover_name="UF",
-        hover_data={"Quantidade": True, "UF": False},
-    )
-    fig.update_geos(fitbounds="locations", visible=False)
-    fig.update_layout(
-        margin={"r": 0, "t": 0, "l": 0, "b": 0},
-        height=450,
-        coloraxis_colorbar=dict(title="Licitações"),
-    )
-    st.plotly_chart(fig, use_container_width=True)
 
     with st.expander("📋 Log da última busca"):
         for entry in st.session_state.log_busca:
