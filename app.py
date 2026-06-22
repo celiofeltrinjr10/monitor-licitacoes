@@ -309,9 +309,28 @@ else:
     )
     with st.expander("Como usar"):
         st.markdown("""
-1. **Período**: quantos dias retroativos consultar no PNCP (padrão: 9 dias)
+1. **Período**: quantos dias retroativos consultar no PNCP (padrão: 3 dias)
 2. **Valor mínimo**: obras abaixo desse valor são descartadas (padrão: R$ 100 M)
 3. **Modalidades**: marque os tipos de licitação desejados
 4. Clique em **Buscar** — a busca pode levar alguns minutos dependendo do volume
 5. Filtre por estado na tabela e use **Baixar Excel** para exportar
+        """)
+    with st.expander("⚠️ Limitações desta versão"):
+        st.markdown("""
+**Limite de registros por consulta**
+
+Por rodar na nuvem, cada modalidade consulta no máximo **500 registros** por busca.
+Em períodos longos com alto volume (ex: Pregão Eletrônico com 7+ dias), registros
+das páginas mais antigas podem não ser retornados.
+
+**Como minimizar o risco de perder licitações:**
+- Prefira períodos curtos de **1 a 3 dias** e busque com mais frequência
+- Se aparecer o aviso ⚠️ *limite atingido* no log, repita a busca com período menor
+- Licitações de obras grandes (Concorrência) raramente atingem o limite
+
+**Campos financeiros**
+
+O valor estimado nem sempre está preenchido no PNCP. Licitações com valor R$ 0
+são incluídas mesmo abaixo do mínimo configurado — podem ser orçamento sigiloso
+ou dado ainda não publicado.
         """)
